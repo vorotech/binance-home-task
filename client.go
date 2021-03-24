@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -11,6 +13,7 @@ import (
 type ApiClient interface {
 	GetExchangeInfo() (*ExchangeInfoResponse, error)
 	GetTickerChangeStatistics(symbol string) ([]*TickerChangeStatics, error)
+	GetOrderBook(symbol string, limit int) (*OrderBook, error)
 }
 
 type client struct{}
@@ -20,7 +23,9 @@ func NewApiClient() ApiClient {
 }
 
 func (c *client) GetExchangeInfo() (*ExchangeInfoResponse, error) {
-	response, err := http.Get(apiBaseUrl + "/api/v3/exchangeInfo")
+	u := apiBaseUrl + "/api/v3/exchangeInfo"
+	log.Infof("GET %s", u)
+	response, err := http.Get(u)
 
 	if err != nil {
 		log.Fatal(err.Error())
@@ -42,19 +47,20 @@ func (c *client) GetExchangeInfo() (*ExchangeInfoResponse, error) {
 }
 
 func (c *client) GetTickerChangeStatistics(symbol string) ([]*TickerChangeStatics, error) {
-	var url string
+	var u string
 	var isArray bool
 	if symbol != "" {
 		log.WithField("symbol", symbol).Infof("Get ticker change statistics for %s", symbol)
-		url = apiBaseUrl + "/api/v3/ticker/24hr?symbol=" + symbol
+		u = apiBaseUrl + "/api/v3/ticker/24hr?symbol=" + symbol
 		isArray = false
 	} else {
 		log.Info("Get ticker change statistics for all symbols")
-		url = apiBaseUrl + "/api/v3/ticker/24hr"
+		u = apiBaseUrl + "/api/v3/ticker/24hr"
 		isArray = true
 	}
 
-	response, err := http.Get(url)
+	log.Infof("GET %s", u)
+	response, err := http.Get(u)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -86,4 +92,44 @@ func (c *client) GetTickerChangeStatistics(symbol string) ([]*TickerChangeStatic
 		result = append(result, &tickerChangeStatics[i])
 	}
 	return result, nil
+}
+
+func (c *client) GetOrderBook(symbol string, limit int) (*OrderBook, error) {
+	v := url.Values{}
+	v.Set("limit", strconv.Itoa(limit))
+	v.Set("symbol", symbol)
+	u := apiBaseUrl + "/api/v3/depth?" + v.Encode()
+
+	log.Infof("GET %s", u)
+	response, err := http.Get(u)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		var apierr ApiError
+		if err = json.Unmarshal(responseData, &apierr); err != nil {
+			log.Error(err)
+			return nil, err
+		}
+		log.WithField("code", apierr.Code).Error(apierr.Message)
+		return nil, &apierr
+	}
+
+	var orderBook OrderBook
+	err = json.Unmarshal(responseData, &orderBook)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	log.WithField("symbol", symbol).Infof("Completed request to get order book for %s", symbol)
+	return &orderBook, nil
 }

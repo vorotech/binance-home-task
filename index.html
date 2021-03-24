@@ -66,6 +66,33 @@
             </tbody>
         </table>
     </section>
+
+    <section>
+        <h3>{{ .TotalNotionalValues.Title }}</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Total Bids</th>
+                    <th>Total Asks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .TotalNotionalValues.Values}}
+                <tr>
+                    <td>{{ .Symbol }}</td>
+                    <td>{{ .BidsTotal }}</td>
+                    <td>{{ .AsksTotal }}</td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="3">no data</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </section>
+
 </body>
 
 </html>

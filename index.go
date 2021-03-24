@@ -5,15 +5,21 @@ import (
 	"text/template"
 )
 
-type TopStatsSection struct {
+type StatsSection struct {
 	Title string
-	Stats Stats
+	Stats []*TickerChangeStatics
+}
+
+type NotionalValuesSection struct {
+	Title  string
+	Values []*TotalNotionalValue
 }
 
 type PageData struct {
-	PageTitle         string
-	TopVolumes        TopStatsSection
-	TopNumberOfTrades TopStatsSection
+	PageTitle           string
+	TopVolumes          StatsSection
+	TopNumberOfTrades   StatsSection
+	TotalNotionalValues NotionalValuesSection
 }
 
 func (c *controller) index(w http.ResponseWriter, req *http.Request) {
@@ -30,13 +36,17 @@ func (c *controller) index(w http.ResponseWriter, req *http.Request) {
 
 	data := PageData{
 		PageTitle: "Binance Market Data",
-		TopVolumes: TopStatsSection{
-			Title: "TOP 5 highest volume over the last 24h for quote asset BTC",
+		TopVolumes: StatsSection{
+			Title: "Top 5 highest volume over the last 24h for quote asset BTC",
 			Stats: marketData.TopVolume,
 		},
-		TopNumberOfTrades: TopStatsSection{
-			Title: "TOP 5 highest number of trades over the last 24h for quote asset USDT",
+		TopNumberOfTrades: StatsSection{
+			Title: "Top 5 highest number of trades over the last 24h for quote asset USDT",
 			Stats: marketData.TopNumberOfTrades,
+		},
+		TotalNotionalValues: NotionalValuesSection{
+			Title:  "Total notional value of the top 200 bids and asks",
+			Values: marketData.TotalNotionalValues,
 		},
 	}
 	tmpl.Execute(w, data)

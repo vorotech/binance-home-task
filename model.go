@@ -1,5 +1,14 @@
 package main
 
+type ApiError struct {
+	Code    int    `json:"code"`
+	Message string `json:"msg"`
+}
+
+func (e *ApiError) Error() string {
+	return e.Message
+}
+
 type ExchangeInfoResponse struct {
 	Timezone        string      `json:"timezone"`
 	ServerTime      int64       `json:"timestamp"`
@@ -73,4 +82,10 @@ type TickerChangeStatics struct {
 	Firsttradeid       int     `json:"firstId"`
 	Lasttradeid        int     `json:"lastId"`
 	Tradecount         int     `json:"count"`
+}
+
+type OrderBook struct {
+	Lastupdateid int        `json:"lastUpdateId"`
+	Bids         [][]string `json:"bids"`
+	Asks         [][]string `json:"asks"`
 }
