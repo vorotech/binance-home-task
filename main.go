@@ -21,13 +21,22 @@ type controller struct {
 var (
 	apiBaseUrl    string
 	listenAddress string
+	logLevel      string
 )
 
 func main() {
 
 	flag.StringVar(&apiBaseUrl, "api-base-url", "https://api.binance.com", "public Rest API for Binance")
 	flag.StringVar(&listenAddress, "listen-addres", ":8080", "server listen address")
+	flag.StringVar(&logLevel, "log-level", "info", "minimum logging level")
 	flag.Parse()
+
+	l, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+	} else {
+		log.SetLevel(l)
+	}
 
 	c := &controller{logger: log.New(), nextRequestID: func() string { return strconv.FormatInt(time.Now().UnixNano(), 36) }}
 

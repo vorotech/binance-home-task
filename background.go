@@ -34,6 +34,7 @@ func NewBackgroundService(s *MarketDataService) BackgroundService {
 }
 
 func (b *background) Start() {
+	b.backgroundTask()
 	gocron.Every(10).Second().Do(b.backgroundTask)
 	<-gocron.Start()
 }

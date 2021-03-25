@@ -36,8 +36,8 @@ func newMetricsCollector() *metricsCollector {
 			[]string{"symbol"}, nil,
 		),
 		spreadDeltaMetric: prometheus.NewDesc(
-			"spread_diff",
-			"Absolute delta from the previous spread value",
+			"spread_delta",
+			"Absolute delta from the previous spread value with sign label",
 			[]string{"symbol", "sign"}, nil,
 		),
 	}

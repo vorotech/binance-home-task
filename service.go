@@ -148,22 +148,21 @@ func (s *service) GetTopSymbols(
 
 func (s *service) GetTotalNotionalValues(symbols []string) ([]*TotalNotionalValue, error) {
 	var aerr error
-	sem := make(chan int, len(symbols))
-	tnvs := make([]*TotalNotionalValue, len(symbols))
-	for i, symbol := range symbols {
+	var tnvs []*TotalNotionalValue
+	c := make(chan *TotalNotionalValue)
+	for _, symbol := range symbols {
 		s1 := symbol
-		i1 := i
 		go func() {
 			value, err := s.getTotalNotionalValue(s1)
 			if err != nil {
 				aerr = err
 			}
-			tnvs[i1] = value
-			sem <- 1
+			c <- value
 		}()
 	}
+
 	for i := 0; i < len(symbols); i++ {
-		<-sem
+		tnvs = append(tnvs, <-c)
 	}
 
 	if aerr != nil {
@@ -180,7 +179,8 @@ func (s *service) getTotalNotionalValue(symbol string) (*TotalNotionalValue, err
 
 	book, err := s.client.GetOrderBook(symbol, limit)
 	if err != nil {
-		log.WithField("symbol", symbol).Errorf("Error occurred while getting order book for %s", symbol)
+		log.WithField("symbol", symbol).Errorf(
+			"Error occurred while getting order book for %s", symbol)
 		return nil, err
 	}
 
@@ -212,23 +212,23 @@ func (s *service) getTotalNotionalValue(symbol string) (*TotalNotionalValue, err
 
 func (s *service) GetSpreads(symbols []string) ([]*Spread, error) {
 	var aerr error
-	sem := make(chan int, len(symbols))
-	spreads := make([]*Spread, len(symbols))
-	for i, symbol := range symbols {
+	var spreads []*Spread
+	c := make(chan *Spread)
+	for _, symbol := range symbols {
 		s1 := symbol
-		i1 := i
 		go func() {
 			value, err := s.getSpread(s1)
 			if err != nil {
 				aerr = err
 			}
-			spreads[i1] = value
-			sem <- 1
+			c <- value
 		}()
 	}
+
 	for i := 0; i < len(symbols); i++ {
-		<-sem
+		spreads = append(spreads, <-c)
 	}
+	close(c)
 
 	if aerr != nil {
 		log.Error("Erorr occurred while getting spreads")
@@ -239,11 +239,10 @@ func (s *service) GetSpreads(symbols []string) ([]*Spread, error) {
 }
 
 func (s *service) getSpread(symbol string) (*Spread, error) {
-	limit := 5
-
-	book, err := s.client.GetOrderBook(symbol, limit)
+	book, err := s.client.GetOrderBook(symbol, 5)
 	if err != nil {
-		log.WithField("symbol", symbol).Errorf("Error occurred while getting order book for %s", symbol)
+		log.WithField("symbol", symbol).Errorf(
+			"Error occurred while getting order book for %s", symbol)
 		return nil, err
 	}
 

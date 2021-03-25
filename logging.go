@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -12,7 +13,7 @@ func init() {
 		FullTimestamp: true,
 	})
 
-	log.SetLevel(log.InfoLevel)
+	log.SetOutput(os.Stderr)
 }
 
 func (c *controller) logging(hdlr http.Handler) http.Handler {

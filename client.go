@@ -57,9 +57,10 @@ func (c *client) GetExchangeInfo() (*ExchangeInfoResponse, error) {
 		log.Fatal(err)
 	}
 
-	clientCache.Set(EXCHANGE_INFO_KEY, info, time.Duration(1)*time.Minute)
+	clientCache.Set(EXCHANGE_INFO_KEY, info, time.Duration(10)*time.Minute)
 
-	log.Debug("Completed request to get exchange info")
+	weight := response.Header.Get("x-mbx-used-weight")
+	log.WithField("weight-used", weight).Debug("Completed request to get exchange info")
 	return info, nil
 }
 
@@ -110,7 +111,11 @@ func (c *client) GetTickerChangeStatistics(symbol string) ([]*TickerChangeStatic
 
 	clientCache.Set(TICKER_KEY+symbol, stats, cache.DefaultExpiration)
 
-	log.WithField("count", len(stats)).Debug("Completed request to get ticker change statistics")
+	weight := response.Header.Get("x-mbx-used-weight")
+	log.WithFields(log.Fields{
+		"count":       len(stats),
+		"weight-used": weight,
+	}).Debug("Completed request to get ticker change statistics")
 	return stats, nil
 }
 
@@ -150,6 +155,10 @@ func (c *client) GetOrderBook(symbol string, limit int) (*OrderBook, error) {
 		return nil, err
 	}
 
-	log.WithField("symbol", symbol).Debug("Completed request to get order book")
+	weight := response.Header.Get("x-mbx-used-weight")
+	log.WithFields(log.Fields{
+		"symbol":      symbol,
+		"weight-used": weight,
+	}).Debug("Completed request to get order book")
 	return &orderBook, nil
 }
