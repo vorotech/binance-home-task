@@ -49,7 +49,7 @@ func main() {
 	router.HandleFunc("/live", health.LiveEndpoint)
 	router.HandleFunc("/ready", health.ReadyEndpoint)
 
-	client := NewApiClient()
+	client := NewApiClient(apiBaseUrl)
 	service := NewMarketDataService(&client)
 	background := NewBackgroundService(&service)
 	go background.Start()

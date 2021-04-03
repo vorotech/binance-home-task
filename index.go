@@ -29,7 +29,7 @@ type PageData struct {
 }
 
 func (c *controller) index(w http.ResponseWriter, req *http.Request) {
-	client := NewApiClient()
+	client := NewApiClient(apiBaseUrl)
 	service := NewMarketDataService(&client)
 
 	marketData, _ := service.GetMarketData(
