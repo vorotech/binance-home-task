@@ -9,15 +9,19 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	EXCHANGE_INFO_KEY = "exchangeInfo"
+var (
+	once     sync.Once
+	instance *client
 )
+
+const EXCHANGE_INFO_KEY = "exchangeInfo"
 
 type ApiClient interface {
 	GetExchangeInfo() (*ExchangeInfoResponse, error)
@@ -32,11 +36,16 @@ type client struct {
 }
 
 func NewApiClient(baseUrl string) ApiClient {
-	return &client{
-		apiBaseUrl:  baseUrl,
-		infoCache:   cache.New(time.Duration(10)*time.Minute, time.Duration(10)*time.Minute),
-		tickerCache: cache.New(time.Duration(1)*time.Second, time.Duration(1)*time.Second),
-	}
+
+	once.Do(func() {
+		instance = &client{
+			apiBaseUrl:  baseUrl,
+			infoCache:   cache.New(time.Duration(10)*time.Minute, time.Duration(10)*time.Minute),
+			tickerCache: cache.New(time.Duration(1)*time.Second, time.Duration(1)*time.Second),
+		}
+	})
+
+	return instance
 }
 
 func (c *client) GetExchangeInfo() (*ExchangeInfoResponse, error) {
@@ -47,7 +56,7 @@ func (c *client) GetExchangeInfo() (*ExchangeInfoResponse, error) {
 		return info, nil
 	}
 
-	err := c.restRequest(http.MethodGet, "/api/v3/exchangeInfo", &info)
+	err := c.restRequest(http.MethodGet, "/api/v3/exchangeInfo", nil, &info, nil)
 	if err != nil {
 		log.Error(err.Error())
 		return nil, err
@@ -70,14 +79,14 @@ func (c *client) GetTickerChangeStatistics(symbol string) ([]*TickerChangeStatic
 		v := url.Values{}
 		v.Set("symbol", symbol)
 		var item TickerChangeStatics
-		err := c.restRequest(http.MethodGet, "/api/v3/ticker/24hr", &item, setParams(v))
+		err := c.restRequest(http.MethodGet, "/api/v3/ticker/24hr", nil, &item, v)
 		if err != nil {
 			log.Error(err.Error())
 			return nil, err
 		}
 		stats = []*TickerChangeStatics{&item}
 	} else {
-		err := c.restRequest(http.MethodGet, "/api/v3/ticker/24hr", &stats)
+		err := c.restRequest(http.MethodGet, "/api/v3/ticker/24hr", nil, &stats, nil)
 		if err != nil {
 			log.Error(err.Error())
 			return nil, err
@@ -95,7 +104,7 @@ func (c *client) GetOrderBook(symbol string, limit int) (*OrderBook, error) {
 	v.Set("symbol", symbol)
 
 	var orderBook OrderBook
-	err := c.restRequest(http.MethodGet, "/api/v3/depth", &orderBook, setParams(v))
+	err := c.restRequest(http.MethodGet, "/api/v3/depth", nil, &orderBook, v)
 	if err != nil {
 		return nil, err
 	}
@@ -103,41 +112,17 @@ func (c *client) GetOrderBook(symbol string, limit int) (*OrderBook, error) {
 	return &orderBook, nil
 }
 
-type ApiOptions struct {
-	payload interface{}
-	params  url.Values
-}
-
-type ApiOptionsParams func(options *ApiOptions) error
-
-func setParams(params url.Values) func(*ApiOptions) error {
-	return func(opts *ApiOptions) error {
-		opts.params = params
-		return nil
-	}
-}
-
-// func setPayload(payload interface{}) func(*ApiOptions) error {
-// 	return func(opts *ApiOptions) error {
-// 		opts.payload = payload
-// 		return nil
-// 	}
-// }
-
-func (c *client) restRequest(verb string, path string, response interface{}, options ...ApiOptionsParams) error {
-	opts, err := getOptions(options)
-	if err != nil {
-		return err
-	}
+func (c *client) restRequest(verb string, path string, payload interface{},
+	response interface{}, params url.Values) error {
 
 	url := c.apiBaseUrl + path
-	if len(opts.params) != 0 {
-		url = updateUri(url, opts)
+	if len(params) != 0 {
+		url = updateUri(url, params)
 	}
 
 	var body io.Reader
-	if opts.payload != nil {
-		jsonStr, err := json.Marshal(opts.payload)
+	if payload != nil {
+		jsonStr, err := json.Marshal(payload)
 		if err != nil {
 			return err
 		}
@@ -180,22 +165,11 @@ func (c *client) restRequest(verb string, path string, response interface{}, opt
 	return json.Unmarshal(data, &response)
 }
 
-func getOptions(options []ApiOptionsParams) (*ApiOptions, error) {
-	opts := &ApiOptions{}
-	for _, opt := range options {
-		err := opt(opts)
-		if err != nil {
-			return opts, err
-		}
-	}
-	return opts, nil
-}
-
-func updateUri(uri string, opts *ApiOptions) string {
+func updateUri(uri string, params url.Values) string {
 	if strings.Contains(uri, "?") {
 		uri += "&"
 	} else {
 		uri += "?"
 	}
-	return uri + opts.params.Encode()
+	return uri + params.Encode()
 }

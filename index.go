@@ -3,6 +3,9 @@ package main
 import (
 	"net/http"
 	"text/template"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type SymbolsSection struct {
@@ -29,6 +32,17 @@ type PageData struct {
 }
 
 func (c *controller) index(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != "/" {
+		http.NotFound(w, req)
+		return
+	}
+
+	defer func(t time.Time) {
+		log.Debugf("Executed index handler in %s", time.Since(t))
+	}(time.Now())
+
+	log.Debug("Executing index handler")
+
 	client := NewApiClient(apiBaseUrl)
 	service := NewMarketDataService(&client)
 

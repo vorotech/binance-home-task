@@ -7,6 +7,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/shopspring/decimal"
+	log "github.com/sirupsen/logrus"
 )
 
 const SPREAD_METRICS_KEY = "spredMetrics"
@@ -44,6 +45,7 @@ func newMetricsCollector() *metricsCollector {
 }
 
 func (c *metricsCollector) Collect(ch chan<- prometheus.Metric) {
+	log.Debug("Collect Prometheus metrics from spread metrics cache")
 	var metrics map[string]*SpreadMetric
 	if x, found := MetricsCache.Get(SPREAD_METRICS_KEY); found {
 		metrics = x.(map[string]*SpreadMetric)
